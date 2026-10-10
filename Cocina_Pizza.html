@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cocina Pizzas - Juego de Fracciones</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        canvas { display: block; margin: 0 auto; }
+
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-overlay { animation: fadeIn 0.2s ease-out forwards; }
+        .modal-content { animation: slideUp 0.3s ease-out forwards; }
+
+        @keyframes pulse-red {
+            0%, 100% { background-color: #7f1d1d; transform: scale(1); }
+            50% { background-color: #ef4444; transform: scale(1.05); }
+        }
+        .timer-danger { animation: pulse-red 1s infinite; }
+
+        @keyframes bounceIn { 0% { transform: scale(0.8); opacity:0;} 100% { transform: scale(1); opacity:1;} }
+        .msg-pop { animation: bounceIn 0.25s ease-out forwards; }
+
+        .tutorial-overlay-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); z-index: 45; }
+        .tutorial-highlight { position: relative; z-index: 50; outline: 4px solid #3b82f6; outline-offset: 4px; border-radius: 12px; background: white; pointer-events: auto !important; }
+        .tutorial-blocker { position: fixed; inset: 0; z-index: 48; pointer-events: auto; }
+        
+        .chef-dialog { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; align-items: flex-end; gap: 10px; max-width: 90%; animation: slideUp 0.3s ease-out; }
+        .chef-bubble { background: white; border: 3px solid #3b82f6; border-radius: 20px; padding: 15px 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; font-weight: 600; color: #1e293b; font-size: 1.1rem; }
+        .chef-bubble::after { content: ''; position: absolute; bottom: 10px; left: -15px; border-width: 10px 15px 10px 0; border-style: solid; border-color: transparent #3b82f6 transparent transparent; }
+        .chef-avatar { font-size: 5rem; line-height: 1; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.3)); }
+
+        @keyframes float-mag { 0%, 100% { transform: translateY(0) scale(1.2); } 50% { transform: translateY(-10px) scale(1.2); } }
+        .magnifying-glass { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); font-size: 2rem; animation: float-mag 1s infinite; z-index: 60; pointer-events: none; }
+
+        .curtain-container { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; pointer-events: none; }
+        .curtain-panel { flex: 1; background-color: #f97316; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); border-bottom: 20px solid #c2410c; display: flex; align-items: center; justify-content: center; transform: translateY(-100%); }
+        .curtain-text { font-size: 4rem; font-weight: 800; color: white; text-shadow: 3px 3px 0 #9a3412; opacity: 0; transition: opacity 0.3s; }
+        .curtain-closed .curtain-panel { transform: translateY(0); pointer-events: auto; }
+        .curtain-closed .curtain-text { opacity: 1; transition-delay: 0.5s; }
+
+        .slice-token { cursor: grab; }
+        .slice-token:active { cursor: grabbing; }
+
+        .life-heart.lost { filter: grayscale(1); opacity: 0.35; }
+        .client-worried { animation: pulse-red 0.8s infinite; }
+
+        .pizza-box-bg { background-image: url('data:image/svg+xml;utf8,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="90" height="90" rx="5" fill="%23fef3c7" stroke="%23d97706" stroke-width="2"/></svg>'); background-size: contain; background-repeat: no-repeat; background-position: center; position: relative; display: flex; justify-content: center; align-items: center; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-800 relative bg-slate-100">
+
+    <div id="main-menu-view" class="absolute inset-0 z-40 bg-slate-900 flex items-center justify-center overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl p-10 max-w-md w-11/12 text-center">
+            <h1 class="text-4xl font-bold mb-2 text-slate-800">🍕 Cocina Pizzas</h1>
+            <p class="text-slate-500 mb-8">Suma y resta fracciones armando los pedidos de tus clientes</p>
+            <div class="flex flex-col gap-4">
+                <button onclick="goToModeSelect(false)" class="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg transition transform hover:scale-105">🎮 Nuevo Juego</button>
+                <button onclick="goToModeSelect(true)" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition transform hover:scale-105">📖 Cómo Jugar</button>
+                <button onclick="attemptExitApp()" class="px-8 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition">🚪 Salir</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mode-select-view" class="hidden absolute inset-0 z-40 bg-slate-900 flex items-center justify-center overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl p-10 max-w-md w-11/12 text-center">
+            <h2 class="text-2xl font-bold mb-2 text-slate-800">Elige tu modalidad</h2>
+            <p class="text-slate-500 mb-8 text-sm">¿Quieres jugar tranquilo o poner a prueba tu velocidad mental?</p>
+            <div class="flex flex-col gap-4">
+                <button onclick="onModeSelected(false)" class="px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg shadow-lg transition transform hover:scale-105">
+                    🧘 Jugar sin Temporizador
+                </button>
+                <button onclick="onModeSelected(true)" class="px-8 py-4 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shadow-lg transition transform hover:scale-105">
+                    ⏱️ Jugar con Temporizador
+                </button>
+                <button onclick="backToMainMenu()" class="px-8 py-2 text-slate-500 hover:text-slate-700 font-medium transition">← Volver</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-view" class="hidden flex-1 flex flex-col h-full w-full relative">
+        <header id="game-header" class="bg-slate-900 text-white p-3 shadow-md z-10 flex justify-between items-center shrink-0 flex-wrap gap-2 transition-all">
+            <h1 class="text-lg md:text-2xl font-bold flex items-center gap-2 truncate">🍕 Cocina Pizzas</h1>
+
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-1 p-1 rounded" id="lives-display"></div>
+                <div class="bg-slate-800 border border-slate-600 px-4 py-1 rounded-full text-center min-w-[90px] transition-all">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-widest leading-tight">Puntos</div>
+                    <div id="score-value" class="text-lg font-mono font-bold leading-tight">0</div>
+                </div>
+                <div id="timer-display" class="hidden bg-slate-800 border border-slate-600 px-4 py-1 rounded-full text-center min-w-[90px] transition-all">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-widest leading-tight">Tiempo</div>
+                    <div id="timer-value" class="text-lg font-mono font-bold leading-tight">--</div>
+                </div>
+            </div>
+
+            <div id="top-right-buttons" class="flex gap-2 shrink-0 p-1 rounded">
+                <button onclick="showInstructions(false, true)" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-sm transition">Cómo Jugar</button>
+                <button onclick="promptEarlyExit()" class="bg-orange-600 hover:bg-orange-500 px-3 py-1 rounded text-sm transition">Terminar Partida</button>
+                <button onclick="promptExitToMenu()" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded text-sm font-bold transition">Salir</button>
+            </div>
+        </header>
+
+        <main class="flex-1 flex flex-col overflow-y-auto p-4 gap-4 relative">
+            <div class="text-center shrink-0">
+                <div id="round-info" class="text-sm font-bold text-blue-600 uppercase tracking-wider bg-blue-100 inline-block px-4 py-1 rounded-full border border-blue-200">Ronda 1 - Pedido 1 de 3</div>
+            </div>
+
+            <section id="customer-panel" class="shrink-0 flex flex-col md:flex-row items-center gap-4 bg-white rounded-xl border-2 border-slate-200 p-4 shadow-sm transition-all">
+                <div class="flex flex-col items-center shrink-0 w-24">
+                    <div id="customer-emoji" class="text-6xl md:text-7xl select-none transition-transform duration-300">🧑</div>
+                    <div id="customer-name" class="text-sm font-bold text-slate-600 mt-2 hidden text-center w-full">Ana</div>
+                </div>
+                <div id="dialogue-bubble" class="flex-1 bg-yellow-50 border border-yellow-200 p-4 rounded-xl relative">
+                    <span class="text-xs font-bold text-yellow-800 uppercase block mb-1">📝 El cliente pide:</span>
+                    <p id="order-text" class="text-base md:text-lg text-slate-800 font-medium leading-relaxed"></p>
+                </div>
+            </section>
+
+            <div class="flex-1 flex flex-col xl:flex-row gap-4 min-h-0">
+                <section id="assembly-area" class="flex-1 bg-slate-50 rounded-xl border-2 border-slate-200 p-4 overflow-y-auto custom-scroll transition-all" ondragover="event.preventDefault()" ondrop="dropAssemblyHandler(event)">
+                    <div class="text-center text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">🍕 Rebanadas disponibles (arrastra o toca para agregar)</div>
+                    <div id="denom-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </section>
+
+                <section id="delivery-area" class="xl:w-[380px] w-full shrink-0 bg-orange-50 rounded-xl border-2 border-orange-200 p-4 flex flex-col transition-all">
+                    <div class="text-center text-xs font-bold text-orange-700 uppercase tracking-wider mb-2">📦 Cajas de Entrega</div>
+                    <div id="delivery-box" ondragover="event.preventDefault()" ondrop="dropHandler(event)"
+                         class="flex-1 min-h-[160px] bg-white border-2 border-dashed border-orange-300 rounded-lg p-3 flex flex-wrap gap-4 justify-center content-start items-start overflow-y-auto custom-scroll">
+                        <!-- Las cajas generadas irán aquí -->
+                    </div>
+                    
+                    <button id="btn-undo-box" onclick="undoLastBoxItem()" class="mt-3 w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg shadow transition flex items-center justify-center gap-2">
+                        🔙 Modificar Pedido (Quitar Rebanada)
+                    </button>
+                    <button id="btn-submit-order" onclick="submitOrder()" class="mt-2 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition transform hover:scale-105 active:scale-95">
+                        ✅ Entregar Pedido
+                    </button>
+                </section>
+            </div>
+        </main>
+        
+        <div id="tutorial-blocker" class="hidden tutorial-blocker"></div>
+    </div>
+
+    <div id="round-curtain" class="curtain-container">
+        <div class="curtain-panel">
+            <div id="curtain-text" class="curtain-text">Ronda 1</div>
+        </div>
+    </div>
+
+    <div id="chef-dialog-container" class="hidden">
+        <div class="tutorial-overlay-bg"></div>
+        <div class="chef-dialog">
+            <div class="chef-avatar">👨‍🍳</div>
+            <div class="chef-bubble">
+                <p id="chef-dialog-text">¡Hola! Te enseñaré cómo jugar.</p>
+                <div class="mt-3 flex items-center justify-end gap-3">
+                    <button id="chef-btn-skip" onclick="skipTutorial()" class="bg-gray-500 hover:bg-gray-600 text-white text-sm font-bold py-1 px-3 rounded shadow">Saltar</button>
+                    <button id="chef-btn-next" onclick="advanceTutorialStep()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-1 px-4 rounded shadow">Siguiente ▶</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-container" class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/80 hidden backdrop-blur-sm modal-overlay">
+        <div id="modal-box" class="modal-content bg-white rounded-2xl shadow-2xl w-11/12 max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div id="modal-header" class="p-5 bg-slate-100 border-b border-slate-200 font-bold text-xl text-slate-800 flex justify-between items-center">
+                <span id="modal-title-text">Título</span>
+                <button id="modal-btn-close-icon" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div id="modal-body" class="p-6 overflow-y-auto custom-scroll text-slate-700 text-base leading-relaxed">Contenido</div>
+            <div id="modal-footer" class="p-4 bg-slate-50 border-t flex justify-end gap-3">
+                <button id="modal-btn-cancel" class="px-5 py-2 text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg font-medium transition hidden shadow-sm">Cancelar</button>
+                <button id="modal-btn-ok" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition transform hover:scale-105">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-modal" class="fixed inset-0 z-[80] hidden items-center justify-center bg-slate-900/85">
+        <div class="msg-pop bg-white rounded-2xl shadow-2xl p-8 max-w-md w-11/12 text-center">
+            <div id="result-icon" class="text-6xl mb-3"></div>
+            <div id="result-title" class="text-xl font-bold mb-2"></div>
+            <p id="result-message" class="text-slate-700 mb-6"></p>
+            <button id="btn-accept-result" onclick="acceptResult()" class="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow transition">Aceptar</button>
+        </div>
+    </div>
+
+    <script>
+        function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+
+        class Fraction {
+            constructor(n, d) {
+                if (d === 0) throw new Error("Denominador cero");
+                let divisor = gcd(Math.abs(n), Math.abs(d)) || 1;
+                this.n = n / divisor;
+                this.d = d / divisor;
+                if (this.d < 0) { this.n *= -1; this.d *= -1; }
+            }
+            add(other) { return new Fraction(this.n * other.d + other.n * this.d, this.d * other.d); }
+            sub(other) { return new Fraction(this.n * other.d - other.n * this.d, this.d * other.d); }
+            equals(other) { return this.n === other.n && this.d === other.d; }
+            greaterThan(other) { return (this.n * other.d) > (other.n * this.d); }
+            toString() { return this.d === 1 ? `${this.n}` : `${this.n}/${this.d}`; }
+            toNumber() { return this.n / this.d; }
+        }
+
+        const denomList = [2, 3, 4, 6, 8];
+        const initialInventory = { 2: 2, 3: 3, 4: 4, 6: 6, 8: 8 };
+        const CUSTOMER_COLOR = "#f97316";
+
+        const NAMES = ["Diego", "Carlos", "Mateo", "Luis", "Andrés", "Fernando", "Emilio", "Javier", "Rodrigo", "Sebastián", "María", "Sofía", "Valentina", "Camila", "Daniela", "Lucía", "Paola", "Renata", "Ximena", "Gabriela"];
+        function pickNames(count) {
+            let pool = [...NAMES];
+            let chosen = [];
+            for (let i = 0; i < count; i++) {
+                let idx = Math.floor(Math.random() * pool.length);
+                chosen.push(pool[idx]);
+                pool.splice(idx, 1);
+            }
+            return chosen;
+        }
+
+        const fractionPool = [
+            {f: new Fraction(1,2), t:"un medio", s:"1/2"}, {f: new Fraction(1,3), t:"un tercio", s:"1/3"},
+            {f: new Fraction(2,3), t:"dos tercios", s:"2/3"}, {f: new Fraction(1,4), t:"un cuarto", s:"1/4"},
+            {f: new Fraction(3,4), t:"tres cuartos", s:"3/4"}, {f: new Fraction(1,6), t:"un sexto", s:"1/6"},
+            {f: new Fraction(5,6), t:"cinco sextos", s:"5/6"}, {f: new Fraction(1,8), t:"un octavo", s:"1/8"},
+            {f: new Fraction(3,8), t:"tres octavos", s:"3/8"}, {f: new Fraction(5,8), t:"cinco octavos", s:"5/8"},
+            {f: new Fraction(7,8), t:"siete octavos", s:"7/8"}
+        ];
+        function getRandomFraction() { return fractionPool[Math.floor(Math.random() * fractionPool.length)]; }
+        function getRandomFormat(fracObj) { return Math.random() < 0.5 ? fracObj.t : fracObj.s; }
+
+        const additionTemplates = [
+            { names:2, fracs:2, multi:true,  text:(n,f)=>`${n[0]} solicita ${f[0]} de pizza y ${n[1]} solicita ${f[1]} de pizza. Entrega la cantidad de pizza que necesitan.`, target:(fr)=>fr[0].add(fr[1]) },
+            { names:1, fracs:2, multi:false, text:(n,f)=>`${n[0]} solicita ${f[0]} de pizza para su comida y ${f[1]} para compartir. Entrega el total de pizza solicitado.`, target:(fr)=>fr[0].add(fr[1]) },
+            { names:0, fracs:2, multi:true,  text:(n,f)=>`La escuela solicita ${f[0]} de pizza para los estudiantes y ${f[1]} para los profesores. Entrega el total de pizza para la escuela.`, target:(fr)=>fr[0].add(fr[1]) }
+        ];
+
+        const subtractionTemplates = [
+            { names:1, fracs:2, multi:false, text:(n,f)=>`${n[0]} solicita ${f[0]} de pizza, pero cancela ${f[1]} de su pedido. Entrega la cantidad de pizza que aún solicita.`, target:(fr)=>fr[0].sub(fr[1]) },
+            { names:1, fracs:2, multi:false, text:(n,f)=>`La familia de ${n[0]} solicita ${f[0]} de pizza, pero reduce su pedido en ${f[1]}. Entrega la cantidad de pizza que necesita la familia.`, target:(fr)=>fr[0].sub(fr[1]) },
+            { names:2, fracs:2, multi:true,  text:(n,f)=>`${n[0]} y ${n[1]} solicitan ${f[0]} de pizza, pero ${n[1]} cancela ${f[1]} del pedido. Entrega la cantidad de pizza que aún solicitan.`, target:(fr)=>fr[0].sub(fr[1]) }
+        ];
+
+        const validDenoms = [1, 2, 3, 4, 6, 8];
+
+        class CardGenerator {
+            static generate() {
+                for (let i = 0; i < 100; i++) {
+                    let isAddition = Math.random() < 0.5;
+                    let templates = isAddition ? additionTemplates : subtractionTemplates;
+                    let tmpl = templates[Math.floor(Math.random() * templates.length)];
+                    let fracObjs = [];
+                    for (let k = 0; k < tmpl.fracs; k++) fracObjs.push(getRandomFraction());
+
+                    if (!isAddition && !fracObjs[0].f.greaterThan(fracObjs[1].f)) continue;
+
+                    let target;
+                    try { target = tmpl.target(fracObjs.map(o => o.f)); } catch (e) { continue; }
+
+                    if (target.n <= 0 || !validDenoms.includes(target.d) || target.toNumber() > 2.5) continue;
+
+                    let names = pickNames(tmpl.names);
+                    let fracDisplays = fracObjs.map(o => getRandomFormat(o));
+                    return { texto: tmpl.text(names, fracDisplays), objetivo: target, multi: tmpl.multi, name: names[0] };
+                }
+                let n = pickNames(1);
+                return { texto: `${n[0]} solicita un medio de pizza. Entrega la cantidad que solicita.`, objetivo: new Fraction(1,2), multi:false, name: n[0] };
+            }
+        }
+
+        const MSG_CORRECT_SINGLE = ["el cliente se fue satisfecho porque le entregaste lo que pidió.", "el cliente se fue muy feliz porque le entregaste lo que solicitó."];
+        const MSG_CORRECT_MULTI = ["los clientes se fueron muy satisfechos porque les entregaste lo que solicitaron.", "los clientes se fueron muy felices porque les entregaste lo que pidieron."];
+        const MSG_EXCESS = ["Gracias por el regalo amigo, pero si sigues así te quedarás sin pizza para los demás en el futuro.", "Ahora ¿qué hago con esta pizza extra?"];
+        const MSG_MISSING_SINGLE = ["Esto no es lo que pedí amigo pizzero.", "Me faltó pizza en mi pedido, ahora ¿dónde consigo el faltante?"];
+        const MSG_MISSING_MULTI = ["Esto no es lo que pedimos amigo pizzero.", "Nos faltó pizza en nuestro pedido, ahora ¿dónde conseguimos el faltante?"];
+        function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+        let gameState = {
+            timerEnabled: false, lives: 3, maxLives: 3, score: 0,
+            inv: {}, box: {2:0,3:0,4:0,6:0,8:0}, boxHistory: [],
+            round: 1, ordersPerRound: 3, currentOrderInRound: 1,
+            currentOrder: null, isGameOver: false,
+            history: [], roundHistory: [],
+            timerInterval: null, timeLeft: 0, maxTime: 60,
+            tutorialActive: false, tutorialStep: 0, timerMode: 'IDLE'
+        };
+
+        let savedGameState = null;
+        let mockInterval = null;
+        let modeSelectContext = 'game';
+        let tutorialContext = 'menu'; // 'menu', 'newgame', 'ingame'
+
+        function showModal(title, bodyHtml, onOk = null, onCancel = null, okText="Aceptar", cancelText="Cancelar") {
+            const container = document.getElementById('modal-container');
+            container.classList.remove('hidden');
+            document.getElementById('modal-title-text').innerHTML = title;
+            document.getElementById('modal-body').innerHTML = bodyHtml;
+
+            const btnOk = document.getElementById('modal-btn-ok');
+            const btnCancel = document.getElementById('modal-btn-cancel');
+            const btnClose = document.getElementById('modal-btn-close-icon');
+
+            let newBtnOk = btnOk.cloneNode(true); btnOk.parentNode.replaceChild(newBtnOk, btnOk);
+            newBtnOk.innerText = okText;
+            let newBtnCancel = btnCancel.cloneNode(true); btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
+            newBtnCancel.innerText = cancelText;
+            let newBtnClose = btnClose.cloneNode(true); btnClose.parentNode.replaceChild(newBtnClose, btnClose);
+
+            const closeModal = () => container.classList.add('hidden');
+
+            newBtnOk.onclick = () => { closeModal(); if (onOk) onOk(); };
+            newBtnClose.onclick = () => { closeModal(); if (onCancel) onCancel(); };
+
+            if (onCancel) { newBtnCancel.classList.remove('hidden'); newBtnCancel.onclick = () => { closeModal(); if (onCancel) onCancel(); }; }
+            else { newBtnCancel.classList.add('hidden'); }
+        }
+
+        function showInstructions(fromMenu, midGame = false, withTimer = false) {
+            if (fromMenu) {
+                document.getElementById('main-menu-view').classList.add('hidden');
+                document.getElementById('mode-select-view').classList.add('hidden');
+                document.getElementById('game-view').classList.remove('hidden');
+                gameState.timerEnabled = withTimer;
+                savedGameState = null;
+                tutorialContext = 'menu';
+            } else if (midGame) {
+                stopTimer();
+                savedGameState = {
+                    inv: JSON.parse(JSON.stringify(gameState.inv)),
+                    box: JSON.parse(JSON.stringify(gameState.box)),
+                    boxHistory: [...gameState.boxHistory],
+                    score: gameState.score,
+                    lives: gameState.lives,
+                    round: gameState.round,
+                    currentOrderInRound: gameState.currentOrderInRound,
+                    currentOrder: gameState.currentOrder,
+                    timeLeft: gameState.timeLeft,
+                    timerEnabled: gameState.timerEnabled
+                };
+                tutorialContext = 'ingame';
+            }
+
+            // Clean state for tutorial
+            gameState.inv = { ...initialInventory };
+            gameState.box = {2:0,3:0,4:0,6:0,8:0};
+            gameState.boxHistory = [];
+            gameState.score = 0;
+            gameState.lives = 3;
+            document.getElementById('timer-display').classList.toggle('hidden', !gameState.timerEnabled);
+            document.getElementById('customer-name').classList.add('hidden');
+            document.getElementById('customer-emoji').classList.remove('client-worried');
+
+            renderLives();
+            updateScoreDisplay();
+            renderAssembly();
+            renderBox();
+
+            startTutorial();
+        }
+
+        // Para iniciar el tutorial desde una nueva partida (después de elegir modalidad)
+        function startTutorialForNewGame(withTimer) {
+            gameState.timerEnabled = withTimer;
+            savedGameState = null;
+            tutorialContext = 'newgame';
+            document.getElementById('mode-select-view').classList.add('hidden');
+            document.getElementById('main-menu-view').classList.add('hidden');
+            document.getElementById('game-view').classList.remove('hidden');
+            document.getElementById('timer-display').classList.toggle('hidden', !withTimer);
+
+            gameState.inv = { ...initialInventory };
+            gameState.box = {2:0,3:0,4:0,6:0,8:0};
+            gameState.boxHistory = [];
+            gameState.score = 0;
+            gameState.lives = 3;
+            gameState.isGameOver = false;
+            gameState.history = [];
+            gameState.round = 1;
+            gameState.currentOrderInRound = 1;
+            gameState.currentOrder = null;
+            gameState.timeLeft = 0;
+
+            document.getElementById('round-info').innerText = `Tutorial`;
+            document.getElementById('order-text').innerText = "Esperando cliente...";
+            document.getElementById('customer-emoji').innerText = '🧑';
+            document.getElementById('customer-name').classList.add('hidden');
+
+            renderLives();
+            updateScoreDisplay();
+            renderAssembly();
+            renderBox();
+
+            startTutorial();
+        }
+
+        function endTutorial() {
+            gameState.tutorialActive = false;
+            document.getElementById('chef-dialog-container').classList.add('hidden');
+            document.getElementById('tutorial-blocker').classList.add('hidden');
+            removeHighlights();
+
+            if (tutorialContext === 'ingame' && savedGameState) {
+                // Restaurar estado de partida en curso
+                gameState.inv = JSON.parse(JSON.stringify(savedGameState.inv));
+                gameState.box = JSON.parse(JSON.stringify(savedGameState.box));
+                gameState.boxHistory = [...savedGameState.boxHistory];
+                gameState.score = savedGameState.score;
+                gameState.lives = savedGameState.lives;
+                gameState.round = savedGameState.round;
+                gameState.currentOrderInRound = savedGameState.currentOrderInRound;
+                gameState.currentOrder = savedGameState.currentOrder;
+                gameState.timeLeft = savedGameState.timeLeft;
+                gameState.timerEnabled = savedGameState.timerEnabled;
+                savedGameState = null;
+
+                renderLives();
+                updateScoreDisplay();
+                document.getElementById('timer-display').classList.toggle('hidden', !gameState.timerEnabled);
+                updateTimerDisplay();
+
+                document.getElementById('round-info').innerText = `Ronda ${gameState.round} - Pedido ${gameState.currentOrderInRound} de ${gameState.ordersPerRound}`;
+                document.getElementById('order-text').innerText = gameState.currentOrder.texto;
+                document.getElementById('customer-emoji').innerText = gameState.currentOrder.multi ? '🧑‍🤝‍🧑' : '🧑';
+                document.getElementById('customer-name').classList.add('hidden');
+                document.getElementById('customer-emoji').classList.remove('client-worried');
+
+                renderAssembly();
+                renderBox();
+
+                showCurtain("Continuamos", () => {
+                    if (gameState.timerEnabled) resumeTimer();
+                });
+            } else if (tutorialContext === 'newgame') {
+                // Iniciar nueva partida (Ronda 1)
+                // Reiniciar inventario y otros estados
+                gameState.inv = { ...initialInventory };
+                gameState.box = {2:0,3:0,4:0,6:0,8:0};
+                gameState.boxHistory = [];
+                gameState.score = 0;
+                gameState.lives = 3;
+                gameState.isGameOver = false;
+                gameState.history = [];
+                gameState.round = 1;
+                gameState.currentOrderInRound = 1;
+                gameState.currentOrder = null;
+                gameState.timeLeft = 0;
+                renderLives();
+                updateScoreDisplay();
+                document.getElementById('timer-display').classList.toggle('hidden', !gameState.timerEnabled);
+                document.getElementById('customer-name').classList.add('hidden');
+                startRound(1);
+            } else {
+                // Tutorial desde menú principal -> volver al menú con cortina
+                showCurtain("<span style='font-size: 0.7em; text-align: center; display: block; line-height: 1.2; padding: 0 10px;'>¿Comenzamos una partida?</span>", () => {
+                    document.getElementById('game-view').classList.add('hidden');
+                    document.getElementById('main-menu-view').classList.remove('hidden');
+                });
+            }
+        }
+
+        // Saltar tutorial: avanzar al último paso y luego finalizar
+        function skipTutorial() {
+            // Si estamos en medio de una simulación de timer, limpiar
+            if (mockInterval) clearInterval(mockInterval);
+            // Forzar el paso al final (step 10) y luego ejecutar endTutorial
+            gameState.tutorialStep = 10;
+            // Ocultar el diálogo del chef y el bloqueo
+            document.getElementById('chef-dialog-container').classList.add('hidden');
+            document.getElementById('tutorial-blocker').classList.add('hidden');
+            removeHighlights();
+            endTutorial();
+        }
+
+        function goToModeSelect(forTutorial = false) {
+            modeSelectContext = forTutorial ? 'tutorial' : 'game';
+            document.getElementById('main-menu-view').classList.add('hidden');
+            document.getElementById('mode-select-view').classList.remove('hidden');
+        }
+
+        function onModeSelected(withTimer) {
+            if (modeSelectContext === 'tutorial') {
+                showInstructions(true, false, withTimer);
+            } else {
+                // Nuevo juego: iniciar tutorial con contexto 'newgame'
+                startTutorialForNewGame(withTimer);
+            }
+        }
+
+        function backToMainMenu() {
+            document.getElementById('mode-select-view').classList.add('hidden');
+            document.getElementById('main-menu-view').classList.remove('hidden');
+        }
+        function attemptExitApp() { showModal("🚪 Salir", "<p>Puedes cerrar esta pestaña cuando quieras. ¡Nos vemos pronto!</p>"); }
+        function promptExitToMenu() {
+            showModal("Salir al menú", "¿Seguro que quieres salir? Perderás el progreso de esta partida.", () => {
+                stopTimer();
+                document.getElementById('game-view').classList.add('hidden');
+                document.getElementById('main-menu-view').classList.remove('hidden');
+            }, () => {});
+        }
+
+        function startTutorial() {
+            gameState.tutorialActive = true;
+            gameState.tutorialStep = 0;
+            document.getElementById('tutorial-blocker').classList.remove('hidden');
+            document.getElementById('chef-dialog-container').classList.remove('hidden');
+            runTutorialLogic();
+        }
+
+        function removeHighlights() {
+            document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight'));
+            let mag = document.getElementById('temp-magnifier');
+            if (mag) mag.remove();
+            if (mockInterval) clearInterval(mockInterval);
+        }
+
+        function setChefDialog(text, showBtn = true) {
+            document.getElementById('chef-dialog-text').innerHTML = text;
+            document.getElementById('chef-btn-next').style.display = showBtn ? 'inline-block' : 'none';
+            // El botón "Saltar" siempre visible
+            document.getElementById('chef-btn-skip').style.display = 'inline-block';
+        }
+
+        function advanceTutorialStep() {
+            gameState.tutorialStep++;
+            runTutorialLogic();
+        }
+
+        function runTutorialLogic() {
+            removeHighlights();
+            let step = gameState.tutorialStep;
+            let blocker = document.getElementById('tutorial-blocker');
+
+            if (step === 0) {
+                document.getElementById('top-right-buttons').classList.add('tutorial-highlight');
+                setChefDialog("¡Hola! Soy el cocinero principal. Veo que eres nuevo, así que te enseñaré qué es cada cosa en la pizzería.<br><br>Arriba a la derecha tienes botones importantes. Recuerda que podrás acceder a <b>Cómo Jugar</b> en cualquier momento del juego para pausar y repasar esto.", true);
+            } 
+            else if (step === 1) {
+                document.getElementById('customer-panel').classList.add('tutorial-highlight');
+                document.getElementById('customer-emoji').innerText = '👧';
+                document.getElementById('customer-name').innerText = 'Ana';
+                document.getElementById('customer-name').classList.remove('hidden');
+                setChefDialog("En esta sección llegan los clientes. Te dirán exactamente qué cantidad de pizza necesitan. ¡Conoce a Ana!", true);
+            }
+            else if (step === 2) {
+                document.getElementById('assembly-area').classList.add('tutorial-highlight');
+                setChefDialog("Esta es la sección donde tú armas el pedido. Puedes arrastrar las pizzas dibujadas hacia la caja de entrega o hacer click en + Añadir.", true);
+            }
+            else if (step === 3) {
+                document.getElementById('delivery-area').classList.add('tutorial-highlight');
+                setChefDialog("Y aquí colocas las rebanadas de pizza. Cuando estés listo, presiona entregar. Si te equivocas, usa el botón Modificar Pedido.", true);
+            }
+            else if (step === 4) {
+                gameState.currentOrder = { texto: "Hola, me han dicho que eres el nuevo de la pizzería, soy Ana y pasé por aquí para ver, pero tengo antojo de ½ pizza.", objetivo: new Fraction(1,2), multi: false };
+                document.getElementById('order-text').innerText = gameState.currentOrder.texto;
+                blocker.classList.add('hidden'); 
+                document.getElementById('assembly-area').classList.add('tutorial-highlight');
+                document.getElementById('delivery-area').classList.add('tutorial-highlight');
+                setChefDialog("¡Inténtalo! Arma el pedido de Ana arrastrando una pizza con la fracción 1/2 a la caja y luego haz click en Entregar.", false);
+            }
+            else if (step === 5) {
+                blocker.classList.remove('hidden');
+                document.getElementById('lives-display').classList.add('tutorial-highlight');
+                document.getElementById('score-value').parentElement.classList.add('tutorial-highlight');
+                setChefDialog("¡Excelente! Por cada pedido correcto ganarás 50 puntos (y extras si usas la menor cantidad de rebanadas posible). Si te equivocas pierdes 1 vida. El juego termina si te quedas sin vidas.", true);
+            }
+            else if (step === 6) {
+                if (!gameState.timerEnabled) {
+                    advanceTutorialStep(); // Saltar si no hay timer
+                    return;
+                }
+                blocker.classList.remove('hidden');
+                document.getElementById('timer-display').classList.add('tutorial-highlight');
+                setChefDialog("Como elegiste jugar con temporizador, aquí arriba verás el reloj. Tendrás tiempo limitado por pedido. ¡Observa lo que pasa si se acaba el tiempo!", false);
+                
+                let mockTime = 3;
+                document.getElementById('timer-value').innerText = `${mockTime}s`;
+                clearInterval(mockInterval);
+                mockInterval = setInterval(() => {
+                    mockTime--;
+                    document.getElementById('timer-value').innerText = `${mockTime}s`;
+                    if(mockTime <= 2) {
+                        document.getElementById('customer-emoji').classList.add('client-worried', 'tutorial-highlight');
+                        document.getElementById('customer-emoji').innerText = '😟';
+                    }
+                    if(mockTime <= 0) {
+                        clearInterval(mockInterval);
+                        document.getElementById('timer-value').innerText = `0s`;
+                        document.getElementById('timer-display').classList.remove('tutorial-highlight');
+                        document.getElementById('customer-emoji').innerText = '💨'; 
+                        document.getElementById('order-text').innerText = "¡El cliente se ha ido!";
+                        setChefDialog("¡Oh no! Los clientes se empiezan a desesperar faltando ciertos segundos y se van cuando se agota el tiempo. Si eso pasa, perderás una vida.", true);
+                    }
+                }, 1000);
+            }
+            else if (step === 7) {
+                gameState.box = {2:0,3:0,4:0,6:0,8:0}; gameState.boxHistory = [];
+                gameState.inv[2] = 0; 
+                renderAssembly(); renderBox();
+                
+                document.getElementById('customer-name').innerText = 'Ana';
+                document.getElementById('customer-emoji').innerText = '👧';
+                document.getElementById('customer-emoji').classList.remove('client-worried', 'tutorial-highlight');
+
+                gameState.currentOrder = { texto: "Hola, he vuelto y ahora quiero una pizza entera (1/1).", objetivo: new Fraction(1,1), multi: false };
+                document.getElementById('order-text').innerText = gameState.currentOrder.texto;
+                
+                document.getElementById('assembly-area').classList.add('tutorial-highlight');
+                setChefDialog("Ana ha vuelto. Si te quedas sin rebanadas, puedes pedirlas al almacén. Pero ten cuidado, solicita la pizza que necesites ya que almacén no aceptará devoluciones.<br>En caso de que lo necesites podrás modificar el pedido arrastrando las pizzas de la caja hacia aquí o bien con el botón, esto quitará rebanada por rebanada agregada.<br><br>Solicita pizzas divididas en medios haciendo click en 'Pedir'.", false);
+                
+                setTimeout(() => {
+                    let btnReq2 = document.getElementById('btn-req-2');
+                    if(btnReq2) {
+                        btnReq2.parentElement.style.position = 'relative';
+                        btnReq2.parentElement.insertAdjacentHTML('beforeend', '<div id="temp-magnifier" class="magnifying-glass">🔍</div>');
+                        btnReq2.style.position = 'relative';
+                        btnReq2.style.zIndex = '60';
+                    }
+                    blocker.classList.add('hidden'); 
+                }, 100);
+            }
+            else if (step === 8) {
+                document.getElementById('assembly-area').classList.add('tutorial-highlight');
+                document.getElementById('delivery-area').classList.add('tutorial-highlight');
+                setChefDialog("Ahora sí, arma y entrega el pedido que te solicitan. (Necesitas 2 medios para una pizza entera).", false);
+            }
+            else if (step === 9) {
+                blocker.classList.remove('hidden');
+                setChefDialog("Por cada ronda de pedidos entregados se mostrará un resumen y los puntos extra obtenidos. ¡Demuestra tus habilidades al jefe y sé el mejor pizzero!", true);
+            }
+            else if (step === 10) {
+                endTutorial();
+            }
+        }
+
+        function initGame(withTimer) {
+            // Ya no se usa directamente, ahora se usa startTutorialForNewGame
+            // Mantenemos por compatibilidad, pero redirigimos
+            startTutorialForNewGame(withTimer);
+        }
+
+        function showCurtain(textStr, callback) {
+            const curtain = document.getElementById('round-curtain');
+            const text = document.getElementById('curtain-text');
+            text.innerHTML = textStr;
+            curtain.classList.add('curtain-closed');
+            
+            setTimeout(() => {
+                curtain.classList.remove('curtain-closed');
+                if (callback) {
+                    setTimeout(callback, 500); 
+                }
+            }, 2500);
+        }
+
+        function startRound(roundNum) {
+            gameState.round = roundNum;
+            gameState.currentOrderInRound = 1;
+            gameState.roundHistory = [];
+            showCurtain(`Ronda ${roundNum}`, () => {
+                nextOrder();
+            });
+        }
+
+        function nextOrder() {
+            if (gameState.currentOrderInRound > gameState.ordersPerRound) {
+                endRoundSummary();
+                return;
+            }
+            
+            gameState.box = {2:0,3:0,4:0,6:0,8:0};
+            gameState.boxHistory = [];
+            gameState.currentOrder = CardGenerator.generate();
+
+            document.getElementById('round-info').innerText = `Ronda ${gameState.round} - Pedido ${gameState.currentOrderInRound} de ${gameState.ordersPerRound}`;
+            document.getElementById('order-text').innerText = gameState.currentOrder.texto;
+            document.getElementById('customer-emoji').innerText = gameState.currentOrder.multi ? '🧑‍🤝‍🧑' : '🧑';
+            document.getElementById('customer-name').classList.add('hidden');
+
+            renderAssembly();
+            renderBox();
+
+            if (gameState.timerEnabled) startPlayingTimer();
+        }
+
+        function renderLives() {
+            const el = document.getElementById('lives-display');
+            let html = '';
+            for (let i = 0; i < gameState.maxLives; i++) {
+                html += `<span class="life-heart text-xl ${i >= gameState.lives ? 'lost' : ''}">❤️</span>`;
+            }
+            el.innerHTML = html;
+        }
+
+        function updateScoreDisplay() { document.getElementById('score-value').innerText = gameState.score; }
+
+        function drawSliceWithVerticalFraction(ctx, cx, cy, radius, startAngle, endAngle, d, color) {
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, radius, startAngle, endAngle);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = '#334155';
+            ctx.stroke();
+
+            let midAngle = (startAngle + endAngle) / 2;
+            let tx = cx + Math.cos(midAngle) * (radius * 0.6);
+            let ty = cy + Math.sin(midAngle) * (radius * 0.6);
+            
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 11px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            ctx.save();
+            ctx.translate(tx, ty);
+            ctx.rotate(90 * Math.PI / 180); 
+            
+            ctx.fillText("1", 0, -6);
+            ctx.fillText(d.toString(), 0, 6);
+            ctx.fillRect(-4, 0, 8, 1.5); 
+            ctx.restore();
+        }
+
+        function drawAssemblyPizza(canvasId, denom, availableInThisPizza) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const r = 32;
+            const sliceAngle = (2 * Math.PI) / denom;
+            
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(-90 * Math.PI / 180);
+            ctx.translate(-cx, -cy);
+
+            for (let i = 0; i < denom; i++) {
+                if (i < availableInThisPizza) {
+                    drawSliceWithVerticalFraction(ctx, cx, cy, r, i * sliceAngle, (i + 1) * sliceAngle, denom, CUSTOMER_COLOR);
+                } else {
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    ctx.arc(cx, cy, r, i * sliceAngle, (i + 1) * sliceAngle);
+                    ctx.closePath();
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+            ctx.restore();
+        }
+
+        function renderAssembly() {
+            const grid = document.getElementById('denom-grid');
+            grid.innerHTML = '';
+            denomList.forEach(d => {
+                let available = gameState.inv[d] - gameState.box[d];
+                let pizzasToDraw = Math.max(1, Math.ceil(available / d));
+                
+                let canvasesHtml = '';
+                for(let i=0; i<pizzasToDraw; i++) {
+                    canvasesHtml += `<canvas id="pizza-cvs-${d}-${i}" width="70" height="70" class="slice-token shrink-0 transition-transform hover:scale-105" draggable="true" ondragstart="dragStart(event, ${d})" onclick="addToBox(${d})"></canvas>`;
+                }
+
+                grid.innerHTML += `
+                    <div class="flex flex-col bg-white rounded-lg border border-slate-200 p-3 shadow-sm relative">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-bold text-slate-700">Pizzas de 1/${d}</span>
+                            <span class="text-xs font-semibold px-2 py-1 bg-slate-100 rounded text-slate-500">${available} rebanadas</span>
+                        </div>
+                        <div class="flex gap-2 overflow-x-auto custom-scroll pb-2 mb-2 items-center min-h-[75px]">
+                            ${canvasesHtml}
+                        </div>
+                        <div class="mt-auto flex gap-2">
+                            <button onclick="addToBox(${d})" ${available <= 0 ? 'disabled' : ''} class="flex-1 bg-orange-100 hover:bg-orange-200 text-orange-800 font-bold text-xs py-2 rounded transition">
+                                + Añadir
+                            </button>
+                            <button id="btn-req-${d}" onclick="requestMore(${d})" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold py-2 rounded transition">
+                                📦 Pedir
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            setTimeout(() => {
+                denomList.forEach(d => {
+                    let available = gameState.inv[d] - gameState.box[d];
+                    let pizzasToDraw = Math.max(1, Math.ceil(available / d));
+                    let slicesLeft = available;
+                    for(let i=0; i<pizzasToDraw; i++) {
+                        let slicesInThisPizza = Math.min(d, Math.max(0, slicesLeft));
+                        drawAssemblyPizza(`pizza-cvs-${d}-${i}`, d, slicesInThisPizza);
+                        slicesLeft -= slicesInThisPizza;
+                    }
+                });
+            }, 10);
+        }
+
+        function renderBox() {
+            const boxEl = document.getElementById('delivery-box');
+            boxEl.innerHTML = '';
+            
+            let totalFraction = new Fraction(0, 1);
+            let slicesToDraw = [];
+            denomList.forEach(d => {
+                for (let i = 0; i < gameState.box[d]; i++) {
+                    slicesToDraw.push(d);
+                    totalFraction = totalFraction.add(new Fraction(1, d));
+                }
+            });
+
+            let numBoxes = Math.max(1, Math.ceil(totalFraction.toNumber()));
+            
+            let sliceIndex = 0;
+            for(let b = 0; b < numBoxes; b++) {
+                let boxDiv = document.createElement('div');
+                boxDiv.className = 'pizza-box-bg w-[100px] h-[100px] shrink-0 shadow-sm rounded relative';
+                
+                let cvs = document.createElement('canvas');
+                cvs.width = 90; cvs.height = 90;
+                cvs.className = 'absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing';
+                
+                // Hacer el canvas en la caja arrastrable para remover (undo)
+                cvs.setAttribute('draggable', 'true');
+                cvs.setAttribute('ondragstart', 'dragStartUndo(event)');
+                
+                boxDiv.appendChild(cvs);
+                boxEl.appendChild(boxDiv);
+
+                const ctx = cvs.getContext('2d');
+                const cx = 45, cy = 45, r = 40;
+                
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(-90 * Math.PI / 180);
+                ctx.translate(-cx, -cy);
+                
+                let currentAngle = 0; 
+                let boxSum = 0;
+
+                while (sliceIndex < slicesToDraw.length && boxSum < 0.999) { 
+                    let d = slicesToDraw[sliceIndex];
+                    let fractionVal = 1 / d;
+                    
+                    if (boxSum + fractionVal > 1.001) break; 
+
+                    let sliceRad = (2 * Math.PI) / d;
+                    drawSliceWithVerticalFraction(ctx, cx, cy, r, currentAngle, currentAngle + sliceRad, d, CUSTOMER_COLOR);
+
+                    currentAngle += sliceRad;
+                    boxSum += fractionVal;
+                    sliceIndex++;
+                }
+                ctx.restore();
+            }
+        }
+
+        function dragStart(event, d) { event.dataTransfer.setData('text/plain', String(d)); }
+        function dragStartUndo(event) { event.dataTransfer.setData('text/plain', 'undo'); }
+        
+        function dropHandler(event) {
+            event.preventDefault();
+            let data = event.dataTransfer.getData('text/plain');
+            let d = parseInt(data, 10);
+            if (!isNaN(d)) addToBox(d);
+        }
+
+        function dropAssemblyHandler(event) {
+            event.preventDefault();
+            let data = event.dataTransfer.getData('text/plain');
+            if (data === 'undo') {
+                undoLastBoxItem();
+            }
+        }
+
+        function addToBox(d) {
+            if (gameState.timerEnabled && gameState.timerMode !== 'PLAYING' && !gameState.tutorialActive) return;
+            let available = gameState.inv[d] - gameState.box[d];
+            if (available > 0) {
+                gameState.box[d]++;
+                gameState.boxHistory.push(d);
+                renderAssembly();
+                renderBox();
+            }
+        }
+
+        function undoLastBoxItem() {
+            if (gameState.boxHistory.length === 0) return;
+            let d = gameState.boxHistory.pop();
+            gameState.box[d]--;
+            renderAssembly();
+            renderBox();
+        }
+
+        function requestMore(d) {
+            gameState.inv[d] += d;
+            renderAssembly();
+            
+            if (gameState.tutorialActive && gameState.tutorialStep === 7 && d === 2) {
+                advanceTutorialStep(); 
+            }
+        }
+
+        function submitOrder() {
+            if (gameState.isGameOver) return;
+            
+            let target = gameState.currentOrder.objetivo;
+            let sum = new Fraction(0, 1);
+            denomList.forEach(d => { if (gameState.box[d] > 0) sum = sum.add(new Fraction(gameState.box[d], d)); });
+            let piecesUsed = denomList.reduce((acc, d) => acc + gameState.box[d], 0);
+
+            let invBefore = { ...gameState.inv };
+            denomList.forEach(d => { gameState.inv[d] -= gameState.box[d]; });
+
+            let correct = sum.equals(target);
+            let isExcess = !correct && sum.greaterThan(target);
+
+            if (gameState.tutorialActive) {
+                if (gameState.tutorialStep === 4) {
+                    if (correct) {
+                        gameState.score += 50;
+                        updateScoreDisplay();
+                        advanceTutorialStep(); 
+                    }
+                    else {
+                        showModal("¡Ups!", "El pedido de Ana era de 1/2. Intenta arrastrar la pizza que tiene marcada la fracción 1/2 a la caja.");
+                        gameState.box = {2:0,3:0,4:0,6:0,8:0}; gameState.boxHistory = []; renderAssembly(); renderBox();
+                    }
+                    return;
+                }
+                if (gameState.tutorialStep === 8) {
+                    if (correct) {
+                        gameState.score += 50;
+                        updateScoreDisplay();
+                        advanceTutorialStep();
+                    }
+                    else {
+                        showModal("¡Ups!", "Recuerda que una pizza entera se forma con dos medios (1/2 + 1/2).");
+                        gameState.box = {2:0,3:0,4:0,6:0,8:0}; gameState.boxHistory = []; renderAssembly(); renderBox();
+                    }
+                    return;
+                }
+            }
+
+            let idealCombo = suggestCombination(invBefore, target);
+            let idealPieces = idealCombo ? denomList.reduce((acc, d) => acc + idealCombo[d], 0) : piecesUsed;
+            let isOptimal = (correct && piecesUsed === idealPieces);
+
+            let entry = { text: gameState.currentOrder.texto, correct: correct, piecesUsed: piecesUsed, idealPieces: idealPieces, optimized: isOptimal };
+
+            if (correct) {
+                stopTimer();
+                let bonusTime = gameState.timerEnabled ? 10 : 0; 
+                let bonusOpt = isOptimal ? 5 : 0; 
+                let points = 50 + bonusTime + bonusOpt;
+                gameState.score += points;
+                updateScoreDisplay();
+                showResult('correct', gameState.currentOrder.multi, bonusTime, bonusOpt);
+            } else {
+                stopTimer();
+                gameState.lives--;
+                renderLives();
+                showResult(isExcess ? 'excess' : 'missing', gameState.currentOrder.multi, 0, 0);
+            }
+
+            gameState.history.push(entry);
+            gameState.roundHistory.push(entry);
+        }
+
+        function suggestCombination(inv, target) {
+            let best = null; let minPieces = Infinity;
+            function backtrack(index, currentSum, currentCombo, piecesCount) {
+                if (currentSum.equals(target)) {
+                    if (piecesCount < minPieces) { minPieces = piecesCount; best = { ...currentCombo }; }
+                    return;
+                }
+                if (currentSum.greaterThan(target) || index >= denomList.length) return;
+                let d = denomList[index];
+                for (let count = 0; count <= inv[d]; count++) {
+                    let val = new Fraction(count, d);
+                    let nextSum = currentSum.add(val);
+                    if (nextSum.greaterThan(target)) break;
+                    currentCombo[d] = count;
+                    backtrack(index + 1, nextSum, currentCombo, piecesCount + count);
+                    currentCombo[d] = 0;
+                }
+            }
+            backtrack(0, new Fraction(0,1), {2:0,3:0,4:0,6:0,8:0}, 0);
+            return best;
+        }
+
+        function showResult(type, multi, bonusTime, bonusOpt) {
+            const modal = document.getElementById('result-modal');
+            const title = document.getElementById('result-title');
+            const msg = document.getElementById('result-message');
+            document.getElementById('result-icon').innerText = type === 'correct' ? '😀' : (type === 'timeout' ? '⏰' : (type === 'excess' ? '😠' : '😡'));
+
+            if (type === 'correct') {
+                title.innerHTML = '¡Pedido entregado correctamente!'; title.className = 'text-xl font-bold mb-2 text-green-600';
+                msg.innerHTML = pickRandom(multi ? MSG_CORRECT_MULTI : MSG_CORRECT_SINGLE);
+                if (bonusTime > 0) msg.innerHTML += `<br><span class="text-sm text-blue-600 font-bold block mt-2">+${bonusTime} pts extra por tiempo.</span>`;
+                if (bonusOpt > 0) msg.innerHTML += `<br><span class="text-sm text-green-600 font-bold block mt-1">🌟 +${bonusOpt} pts extra por pedido óptimo.</span>`;
+            } else if (type === 'excess') {
+                title.innerHTML = 'Pedido incorrecto: sobró pizza'; title.className = 'text-xl font-bold mb-2 text-red-600';
+                msg.innerHTML = pickRandom(MSG_EXCESS);
+            } else if (type === 'missing') {
+                title.innerHTML = 'Pedido incorrecto: faltó pizza'; title.className = 'text-xl font-bold mb-2 text-red-600';
+                msg.innerHTML = pickRandom(multi ? MSG_MISSING_MULTI : MSG_MISSING_SINGLE);
+            } else if (type === 'timeout') {
+                title.innerHTML = 'Se acabó el tiempo'; title.className = 'text-xl font-bold mb-2 text-red-600';
+                msg.innerHTML = 'El cliente se cansó de esperar y se fue.';
+            }
+
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+        }
+
+        function acceptResult() {
+            document.getElementById('result-modal').classList.add('hidden');
+            document.getElementById('result-modal').classList.remove('flex');
+
+            if (gameState.lives <= 0) {
+                gameOver(false);
+                return;
+            }
+            gameState.currentOrderInRound++;
+            nextOrder();
+        }
+
+        function endRoundSummary() {
+            stopTimer();
+            let correctas = gameState.roundHistory.filter(h => h.correct);
+            let optimas = correctas.filter(h => h.optimized).length;
+            let noOptimas = correctas.length - optimas;
+
+            let html = `<div class="space-y-4 text-center text-slate-700">
+                <p class="text-lg font-bold text-slate-800">Has completado la Ronda ${gameState.round}</p>
+                <div class="grid grid-cols-2 gap-3 text-center">
+                    <div class="bg-slate-50 border rounded-lg p-3"><div class="text-xs text-slate-500 uppercase">Puntuación Total</div><div class="text-2xl font-bold text-green-600">${gameState.score}</div></div>
+                    <div class="bg-slate-50 border rounded-lg p-3"><div class="text-xs text-slate-500 uppercase">Pedidos Correctos</div><div class="text-2xl font-bold text-blue-600">${correctas.length} / ${gameState.ordersPerRound}</div></div>
+                </div>`;
+            
+            if (optimas > 0) {
+                html += `<div class="bg-green-50 border border-green-200 text-green-800 rounded-lg p-3 font-bold text-sm">🌟 ¡Ganaste bonificaciones por ${optimas} pedido(s) óptimo(s)!</div>`;
+            }
+            if (noOptimas > 0) {
+                html += `<div class="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg p-3 text-sm">💡 Sugerencia: En ${noOptimas} pedido(s) podrías haber usado menos rebanadas. ¡Intenta optimizar para ganar +5 puntos extras en cada uno!</div>`;
+            }
+            html += `</div>`;
+
+            showModal("📋 Resumen de Ronda", html, () => { startRound(gameState.round + 1); }, null, "Siguiente Ronda ▶");
+        }
+
+        function gameOver(earlyExit = false) {
+            gameState.isGameOver = true;
+            let titleText = earlyExit ? "🏁 Juego terminado anticipadamente" : "💔 ¡Te quedaste sin vidas!";
+            let html = `<div class="text-center text-slate-700 space-y-4"><p class="text-xl">La partida ha terminado. Llegaste a la Ronda ${gameState.round}.</p><p class="text-3xl font-bold text-slate-800">Puntuación: ${gameState.score}</p></div>`;
+            showModal(titleText, html, () => {
+                document.getElementById('game-view').classList.add('hidden');
+                document.getElementById('main-menu-view').classList.remove('hidden');
+            }, null, "Volver al Menú");
+        }
+
+        function promptEarlyExit() { showModal("Terminar Partida", "¿Estás seguro de que deseas terminar? Verás tu puntuación final.", () => gameOver(true), () => {}); }
+
+        function startIntervalTick() {
+            clearInterval(gameState.timerInterval);
+            gameState.timerInterval = setInterval(() => {
+                gameState.timeLeft--;
+                updateTimerDisplay();
+                if (gameState.timeLeft <= 15 && gameState.timeLeft > 0) {
+                    document.getElementById('customer-emoji').classList.add('client-worried');
+                    document.getElementById('customer-emoji').innerText = gameState.currentOrder.multi ? '😟' : '😟';
+                }
+                if (gameState.timeLeft <= 0) {
+                    clearInterval(gameState.timerInterval);
+                    gameState.lives--; renderLives();
+                    gameState.roundHistory.push({ correct: false, timeout: true });
+                    showResult('timeout', gameState.currentOrder.multi, 0, 0);
+                }
+            }, 1000);
+        }
+
+        function startPlayingTimer() {
+            gameState.timerMode = 'PLAYING';
+            gameState.timeLeft = gameState.maxTime;
+            document.getElementById('timer-display').classList.remove('hidden');
+            document.getElementById('customer-emoji').classList.remove('client-worried');
+            updateTimerDisplay();
+            startIntervalTick();
+        }
+
+        function resumeTimer() {
+            if (!gameState.timerEnabled) return;
+            gameState.timerMode = 'PLAYING';
+            document.getElementById('timer-display').classList.remove('hidden');
+            updateTimerDisplay();
+            startIntervalTick();
+        }
+
+        function stopTimer() {
+            clearInterval(gameState.timerInterval);
+            gameState.timerMode = 'IDLE';
+            document.getElementById('customer-emoji').classList.remove('client-worried');
+        }
+
+        function updateTimerDisplay() {
+            const el = document.getElementById('timer-display');
+            document.getElementById('timer-value').innerText = `${gameState.timeLeft}s`;
+            if (gameState.timeLeft <= 15) el.classList.add('timer-danger'); else el.classList.remove('timer-danger');
+        }
+    </script>
+</body>
+</html>
