@@ -20,4 +20,9 @@ Los scripts se cargan como JavaScript clásico en el orden indicado en `Cocina_P
 
 ## Ejecución
 
-Abre `Cocina_Pizza.html` en un navegador. No requiere instalación ni compilación. Tailwind CSS y la fuente Inter se cargan desde CDN, por lo que esos recursos requieren conexión a internet.
+1. Descarga o clona el repositorio y abre la carpeta `Proyecto 1 Pizzeria`.
+2. Abre `Cocina_Pizza.html` en un navegador actualizado.
+
+No requiere instalación, compilación ni una carpeta de ejecutables. Se necesita conexión a internet para cargar Tailwind CSS desde CDN; la fuente Inter también se carga desde CDN.
+
+Si prefieres iniciar el archivo desde VS Code, puedes abrir la carpeta del proyecto y usar una extensión de servidor local como Live Server; no es obligatorio.
