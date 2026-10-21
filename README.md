@@ -3,10 +3,8 @@ En este repositorio se encontrarán algunos manipulables digitales para matemát
 
 ## Probar Cocina Pizzas
 
-No necesitas instalar ni compilar nada. Descarga o clona el repositorio, abre la carpeta `Proyecto 1 Pizzeria` y abre `Cocina_Pizza.html` en un navegador actualizado.
+**Para jugar sin instalar nada y sin internet:** descarga únicamente [Cocina_Pizzas_Offline.html](Ejecutable/Cocina_Pizzas_Offline.html) y ábrelo con Chrome, Edge, Firefox o Safari. Ese archivo contiene el juego completo.
 
-1. En GitHub, selecciona **Code > Download ZIP** y descomprime el archivo, o clona el repositorio.
-2. Entra en `Proyecto 1 Pizzeria`.
-3. Abre `Cocina_Pizza.html` con Chrome, Edge, Firefox o Safari.
+**Para obtener el proyecto editable:** descarga el repositorio con **Code > Download ZIP**, descomprímelo y abre `Proyecto 1 Pizzeria/Cocina_Pizza.html`. Esta versión carga Tailwind CSS desde internet.
 
-Se requiere conexión a internet para cargar Tailwind CSS y la fuente desde sus CDN. No hace falta crear una carpeta de ejecutables: el juego se ejecuta en el navegador.
+No necesitas instalar ni compilar nada para ninguna de las dos opciones.

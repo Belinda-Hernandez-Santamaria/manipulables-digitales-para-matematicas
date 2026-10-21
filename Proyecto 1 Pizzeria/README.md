@@ -20,9 +20,12 @@ Los scripts se cargan como JavaScript clásico en el orden indicado en `Cocina_P
 
 ## Ejecución
 
-1. Descarga o clona el repositorio y abre la carpeta `Proyecto 1 Pizzeria`.
-2. Abre `Cocina_Pizza.html` en un navegador actualizado.
+### Versión editable
 
-No requiere instalación, compilación ni una carpeta de ejecutables. Se necesita conexión a internet para cargar Tailwind CSS desde CDN; la fuente Inter también se carga desde CDN.
+Abre `Cocina_Pizza.html` en un navegador actualizado. Esta versión carga Tailwind CSS desde internet.
 
-Si prefieres iniciar el archivo desde VS Code, puedes abrir la carpeta del proyecto y usar una extensión de servidor local como Live Server; no es obligatorio.
+### Archivo autónomo sin conexión
+
+Descarga solo `Ejecutable/Cocina_Pizzas_Offline.html` desde el repositorio y ábrelo en Chrome, Edge, Firefox o Safari. Incluye el juego, sus estilos y sus scripts en un único archivo, así que no necesita internet ni los demás archivos del proyecto.
+
+Ninguna versión requiere instalación o compilación.
