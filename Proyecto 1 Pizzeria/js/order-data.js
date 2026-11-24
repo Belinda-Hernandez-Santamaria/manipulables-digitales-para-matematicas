@@ -25,16 +25,42 @@ const denomList = [2, 3, 4, 6, 8];
         function getRandomFraction() { return fractionPool[Math.floor(Math.random() * fractionPool.length)]; }
         function getRandomFormat(fracObj) { return Math.random() < 0.5 ? fracObj.t : fracObj.s; }
 
+        function getReferenceComposition(fracs, operation, target) {
+            const reference = {2:0,3:0,4:0,6:0,8:0};
+
+            if (operation === 'single' || operation === 'add') {
+                fracs.forEach(frac => {
+                    if (reference[frac.d] === undefined) return;
+                    reference[frac.d] += frac.n;
+                });
+                return reference;
+            }
+
+            const commonDenominator = (fracs[0].d * fracs[1].d) / gcd(fracs[0].d, fracs[1].d);
+            if (reference[commonDenominator] !== undefined) {
+                reference[commonDenominator] =
+                    fracs[0].n * (commonDenominator / fracs[0].d) -
+                    fracs[1].n * (commonDenominator / fracs[1].d);
+                return reference;
+            }
+
+            const availableDenominator = denomList.find(d => d % target.d === 0);
+            if (availableDenominator) {
+                reference[availableDenominator] = target.n * (availableDenominator / target.d);
+            }
+            return reference;
+        }
+
         const additionTemplates = [
-            { names:2, fracs:2, multi:true,  text:(n,f)=>`${n[0]} solicita ${f[0]} de pizza y ${n[1]} solicita ${f[1]} de pizza. Entrega la cantidad de pizza que necesitan.`, target:(fr)=>fr[0].add(fr[1]) },
-            { names:1, fracs:2, multi:false, text:(n,f)=>`${n[0]} solicita ${f[0]} de pizza para su comida y ${f[1]} para compartir. Entrega el total de pizza solicitado.`, target:(fr)=>fr[0].add(fr[1]) },
-            { names:0, fracs:2, multi:true,  text:(n,f)=>`La escuela solicita ${f[0]} de pizza para los estudiantes y ${f[1]} para los profesores. Entrega el total de pizza para la escuela.`, target:(fr)=>fr[0].add(fr[1]) }
+            { names:2, fracs:2, multi:true,  operation:'add', text:(n,f)=>`${n[0]} solicita ${f[0]} de pizza y ${n[1]} solicita ${f[1]} de pizza. Entrega la cantidad de pizza que necesitan.`, target:(fr)=>fr[0].add(fr[1]) },
+            { names:1, fracs:2, multi:false, operation:'add', text:(n,f)=>`${n[0]} solicita ${f[0]} de pizza para su comida y ${f[1]} para compartir. Entrega el total de pizza solicitado.`, target:(fr)=>fr[0].add(fr[1]) },
+            { names:0, fracs:2, multi:true,  operation:'add', text:(n,f)=>`La escuela solicita ${f[0]} de pizza para los estudiantes y ${f[1]} para los profesores. Entrega el total de pizza para la escuela.`, target:(fr)=>fr[0].add(fr[1]) }
         ];
 
         const subtractionTemplates = [
-            { names:1, fracs:2, multi:false, text:(n,f)=>`${n[0]} solicita ${f[0]} de pizza, pero cancela ${f[1]} de su pedido. Entrega la cantidad de pizza que aún solicita.`, target:(fr)=>fr[0].sub(fr[1]) },
-            { names:1, fracs:2, multi:false, text:(n,f)=>`La familia de ${n[0]} solicita ${f[0]} de pizza, pero reduce su pedido en ${f[1]}. Entrega la cantidad de pizza que necesita la familia.`, target:(fr)=>fr[0].sub(fr[1]) },
-            { names:2, fracs:2, multi:true,  text:(n,f)=>`${n[0]} y ${n[1]} solicitan ${f[0]} de pizza, pero ${n[1]} cancela ${f[1]} del pedido. Entrega la cantidad de pizza que aún solicitan.`, target:(fr)=>fr[0].sub(fr[1]) }
+            { names:1, fracs:2, multi:false, operation:'subtract', text:(n,f)=>`${n[0]} solicita ${f[0]} de pizza, pero de ese pedido original cancela exactamente ${f[1]}. Entrega la cantidad de pizza que aún solicita.`, target:(fr)=>fr[0].sub(fr[1]) },
+            { names:1, fracs:2, multi:false, operation:'subtract', text:(n,f)=>`La familia de ${n[0]} solicita ${f[0]} de pizza, pero reduce su pedido original en ${f[1]}. Entrega la cantidad de pizza que necesita la familia.`, target:(fr)=>fr[0].sub(fr[1]) },
+            { names:2, fracs:2, multi:true,  operation:'subtract', text:(n,f)=>`${n[0]} y ${n[1]} solicitan ${f[0]} de pizza, pero ${n[1]} cancela exactamente ${f[1]} del pedido original. Entrega la cantidad de pizza que aún solicitan.`, target:(fr)=>fr[0].sub(fr[1]) }
         ];
 
         const validDenoms = [1, 2, 3, 4, 6, 8];
@@ -57,10 +83,23 @@ const denomList = [2, 3, 4, 6, 8];
 
                     let names = pickNames(tmpl.names);
                     let fracDisplays = fracObjs.map(o => getRandomFormat(o));
-                    return { texto: tmpl.text(names, fracDisplays), objetivo: target, multi: tmpl.multi, name: names[0] };
+                    const fractions = fracObjs.map(o => o.f);
+                    return {
+                        texto: tmpl.text(names, fracDisplays),
+                        objetivo: target,
+                        referencia: getReferenceComposition(fractions, tmpl.operation, target),
+                        multi: tmpl.multi,
+                        name: names[0]
+                    };
                 }
                 let n = pickNames(1);
-                return { texto: `${n[0]} solicita un medio de pizza. Entrega la cantidad que solicita.`, objetivo: new Fraction(1,2), multi:false, name: n[0] };
+                return {
+                    texto: `${n[0]} solicita un medio de pizza. Entrega la cantidad que solicita.`,
+                    objetivo: new Fraction(1,2),
+                    referencia: {2:1,3:0,4:0,6:0,8:0},
+                    multi:false,
+                    name: n[0]
+                };
             }
         }
 

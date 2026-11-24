@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pruebas de bonificación creativa</title>
+    <style>
+        body { font: 16px Arial, sans-serif; margin: 2rem auto; max-width: 760px; padding: 0 1rem; color: #1e293b; }
+        li { margin: 0.5rem 0; }
+        .pass { color: #15803d; }
+        .fail { color: #b91c1c; }
+        #summary { font-weight: 700; margin: 1rem 0; }
+    </style>
+</head>
+<body>
+    <h1>Pruebas de bonificación creativa</h1>
+    <p>Ejecuta esta página directamente en un navegador; valida la puntuación y los pedidos con las funciones del juego.</p>
+    <p id="summary">Ejecutando…</p>
+    <ol id="results"></ol>
+
+    <div hidden>
+        <div id="lives-display"></div>
+        <div id="score-value"></div>
+        <div id="customer-emoji"></div>
+        <div id="order-history-count"></div>
+        <div id="order-history-notes"></div>
+        <div id="denom-grid"></div>
+        <div id="delivery-box"></div>
+        <div id="result-modal" class="hidden">
+            <div id="result-icon"></div>
+            <div id="result-title"></div>
+            <p id="result-message"></p>
+            <button id="btn-accept-result"></button>
+        </div>
+    </div>
+
+    <script src="../js/fractions.js"></script>
+    <script src="../js/order-data.js"></script>
+    <script src="../js/state.js"></script>
+    <script src="../js/pizza.js"></script>
+    <script src="../js/game-flow.js"></script>
+    <script src="../js/gameplay.js"></script>
+    <script src="../js/timer.js"></script>
+    <script>
+        const results = [];
+
+        function countsFromPieces(denominators) {
+            const counts = {2:0,3:0,4:0,6:0,8:0};
+            denominators.forEach(d => counts[d]++);
+            return counts;
+        }
+
+        function executeDelivery(target, reference, pieces, repeatSubmission = false) {
+            const counts = countsFromPieces(pieces);
+            gameState.isGameOver = false;
+            gameState.orderCompleted = false;
+            gameState.tutorialActive = false;
+            gameState.timerEnabled = false;
+            gameState.timerMode = 'IDLE';
+            gameState.score = 0;
+            gameState.lives = 3;
+            gameState.inv = {...initialInventory};
+            gameState.box = counts;
+            gameState.boxHistory = pieces.slice();
+            gameState.currentOrder = { objetivo:target, referencia:reference, texto:'Prueba', multi:false };
+            gameState.currentOrderAttempts = [];
+            gameState.history = [];
+            gameState.roundHistory = [];
+            gameState.round = 1;
+            gameState.currentOrderInRound = 1;
+            document.getElementById('result-modal').classList.add('hidden');
+
+            submitOrder();
+            const firstScore = gameState.score;
+            if (repeatSubmission) submitOrder();
+            return {
+                correct: gameState.history.length > 0 && gameState.history[0].correct,
+                creative: gameState.history.length > 0 && gameState.history[0].creative,
+                bonus: gameState.score - 50,
+                score: gameState.score,
+                firstScore,
+                historyLength: gameState.history.length
+            };
+        }
+
+        function test(name, assertion) {
+            try {
+                if (!assertion()) throw new Error('El resultado no coincide con lo esperado.');
+                results.push({ name, passed: true });
+            } catch (error) {
+                results.push({ name, passed: false, error: error.message });
+            }
+        }
+
+        function equalsFraction(actual, expected) {
+            return actual.equals(expected);
+        }
+
+        const threeQuarters = new Fraction(3, 4);
+        const singleThreeQuarterReference = getReferenceComposition([threeQuarters], 'single', threeQuarters);
+
+        test('3/4 con tres cuartos: directo, sin bonificación', () => {
+            const result = executeDelivery(threeQuarters, singleThreeQuarterReference, [4,4,4]);
+            return result.correct && result.bonus === 0;
+        });
+        test('3/4 con medio y cuarto: alternativa, +5', () => {
+            const result = executeDelivery(threeQuarters, singleThreeQuarterReference, [2,4]);
+            return result.correct && result.bonus === 5;
+        });
+        test('Cambiar el orden de las piezas no cambia la clasificación', () => {
+            const first = executeDelivery(threeQuarters, singleThreeQuarterReference, [2,4]);
+            const reversed = executeDelivery(threeQuarters, singleThreeQuarterReference, [4,2]);
+            return first.bonus === reversed.bonus;
+        });
+        test('La bonificación se registra una sola vez por pedido', () => {
+            const result = executeDelivery(threeQuarters, singleThreeQuarterReference, [2,4], true);
+            return result.firstScore === 55 && result.score === 55 && result.historyLength === 1;
+        });
+        test('3/4 con medio y octavo: incorrecto, sin bonificación', () => {
+            const result = executeDelivery(threeQuarters, singleThreeQuarterReference, [2,8]);
+            return !result.correct && result.score === 0;
+        });
+        test('3/4 con dos cuartos: incorrecto, sin bonificación', () => {
+            const result = executeDelivery(threeQuarters, singleThreeQuarterReference, [4,4]);
+            return !result.correct && result.score === 0;
+        });
+        test('3/4 con seis octavos disponibles: alternativa, +5', () => {
+            const result = executeDelivery(threeQuarters, singleThreeQuarterReference, [8,8,8,8,8,8]);
+            return result.correct && result.bonus === 5 && initialInventory[8] >= 6;
+        });
+
+        const oneHalf = new Fraction(1, 2);
+        test('1/2 con una pieza de medio: directo, sin bonificación', () => {
+            const reference = getReferenceComposition([oneHalf], 'single', oneHalf);
+            const result = executeDelivery(oneHalf, reference, [2]);
+            return result.correct && result.bonus === 0;
+        });
+        test('1/2 con dos cuartos equivalentes: alternativa, +5', () => {
+            const reference = getReferenceComposition([oneHalf], 'single', oneHalf);
+            const result = executeDelivery(oneHalf, reference, [4,4]);
+            return result.correct && result.bonus === 5;
+        });
+        test('1/2 + 1/4 tal como se pide: directo, sin bonificación', () => {
+            const terms = [new Fraction(1,2), new Fraction(1,4)];
+            const target = terms[0].add(terms[1]);
+            const reference = getReferenceComposition(terms, 'add', target);
+            const result = executeDelivery(target, reference, [2,4]);
+            return equalsFraction(target, threeQuarters) && result.correct && result.bonus === 0;
+        });
+        test('1/2 + 1/4 con tres cuartos equivalentes: alternativa, +5', () => {
+            const terms = [new Fraction(1,2), new Fraction(1,4)];
+            const target = terms[0].add(terms[1]);
+            const reference = getReferenceComposition(terms, 'add', target);
+            const result = executeDelivery(target, reference, [4,4,4]);
+            return result.correct && result.bonus === 5;
+        });
+
+        test('2/3 con dos tercios: directo, sin bonificación', () => {
+            const target = new Fraction(2, 3);
+            const reference = getReferenceComposition([target], 'single', target);
+            const result = executeDelivery(target, reference, [3,3]);
+            return result.correct && result.bonus === 0;
+        });
+        test('3/4 - 1/2 con un cuarto: directo, sin bonificación', () => {
+            const terms = [new Fraction(3,4), new Fraction(1,2)];
+            const target = terms[0].sub(terms[1]);
+            const reference = getReferenceComposition(terms, 'subtract', target);
+            const result = executeDelivery(target, reference, [4]);
+            return equalsFraction(target, new Fraction(1,4)) && result.correct && result.bonus === 0;
+        });
+        test('3/4 - 1/2 con dos octavos equivalentes: alternativa, +5', () => {
+            const terms = [new Fraction(3,4), new Fraction(1,2)];
+            const target = terms[0].sub(terms[1]);
+            const reference = getReferenceComposition(terms, 'subtract', target);
+            const result = executeDelivery(target, reference, [8,8]);
+            return result.correct && result.bonus === 5;
+        });
+        test('5/6 - 1/3 conserva la referencia en sextos', () => {
+            const terms = [new Fraction(5,6), new Fraction(1,3)];
+            const target = terms[0].sub(terms[1]);
+            const reference = getReferenceComposition(terms, 'subtract', target);
+            const result = executeDelivery(target, reference, [6,6,6]);
+            return equalsFraction(target, oneHalf) && result.correct && result.bonus === 0;
+        });
+        test('1/2 + 1/2 con dos medios: directo, sin bonificación', () => {
+            const terms = [oneHalf, oneHalf];
+            const target = terms[0].add(terms[1]);
+            const reference = getReferenceComposition(terms, 'add', target);
+            const result = executeDelivery(target, reference, [2,2]);
+            return equalsFraction(target, new Fraction(1,1)) && result.correct && result.bonus === 0;
+        });
+        test('Las piezas directas usan denominadores disponibles', () => {
+            const target = new Fraction(3,4);
+            const reference = getReferenceComposition([target], 'single', target);
+            return Object.keys(reference).every(d => denomList.includes(Number(d)) && reference[d] >= 0);
+        });
+
+        const resultsList = document.getElementById('results');
+        results.forEach(result => {
+            const item = document.createElement('li');
+            item.className = result.passed ? 'pass' : 'fail';
+            item.textContent = `${result.passed ? '✓' : '✗'} ${result.name}${result.error ? ` — ${result.error}` : ''}`;
+            resultsList.appendChild(item);
+        });
+        const failed = results.filter(result => !result.passed).length;
+        document.getElementById('summary').textContent = `${results.length - failed}/${results.length} pruebas aprobadas`;
+        document.title = failed ? 'FALLO - Pruebas de bonificación' : 'OK - Pruebas de bonificación';
+    </script>
+</body>
+</html>

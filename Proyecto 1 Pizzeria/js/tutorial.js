@@ -17,6 +17,8 @@ function showInstructions(fromMenu, midGame = false, withTimer = false) {
                     round: gameState.round,
                     currentOrderInRound: gameState.currentOrderInRound,
                     currentOrder: gameState.currentOrder,
+                    orderCompleted: gameState.orderCompleted,
+                    roundPizzaRequests: gameState.roundPizzaRequests || 0,
                     timeLeft: gameState.timeLeft,
                     timerEnabled: gameState.timerEnabled
                 };
@@ -42,8 +44,7 @@ function showInstructions(fromMenu, midGame = false, withTimer = false) {
             startTutorial();
         }
 
-        // Para iniciar el tutorial desde una nueva partida (después de elegir modalidad)
-        function startTutorialForNewGame(withTimer) {
+        function prepareNewGameState(withTimer) {
             gameState.timerEnabled = withTimer;
             savedGameState = null;
             tutorialContext = 'newgame';
@@ -58,17 +59,19 @@ function showInstructions(fromMenu, midGame = false, withTimer = false) {
             gameState.score = 0;
             gameState.lives = 3;
             gameState.isGameOver = false;
+            gameState.orderCompleted = false;
             gameState.history = [];
             gameState.roundHistory = [];
             gameState.currentOrderAttempts = [];
+            gameState.roundPizzaRequests = 0;
             renderOrderHistoryNotes();
             gameState.round = 1;
             gameState.currentOrderInRound = 1;
             gameState.currentOrder = null;
             gameState.timeLeft = 0;
 
-            document.getElementById('round-info').innerText = `Tutorial`;
-            document.getElementById('order-text').innerText = "Esperando cliente...";
+            document.getElementById('round-info').innerText = `Preparación`;
+            document.getElementById('order-text').innerText = 'Esperando cliente...';
             document.getElementById('customer-emoji').innerText = '🧑';
             document.getElementById('customer-name').classList.add('hidden');
 
@@ -76,7 +79,28 @@ function showInstructions(fromMenu, midGame = false, withTimer = false) {
             updateScoreDisplay();
             renderAssembly();
             renderBox();
+        }
 
+        function showWelcomeModal() {
+            const modal = document.getElementById('welcome-modal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            const primaryButton = document.getElementById('welcome-btn-tutorial');
+            if (primaryButton) setTimeout(() => primaryButton.focus(), 50);
+        }
+
+        function closeWelcomeModal() {
+            const modal = document.getElementById('welcome-modal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Para iniciar el tutorial desde una nueva partida (después de elegir modalidad)
+        function startTutorialForNewGame(withTimer) {
+            prepareNewGameState(withTimer);
+            document.getElementById('round-info').innerText = `Tutorial`;
             startTutorial();
         }
 
@@ -114,6 +138,10 @@ function showInstructions(fromMenu, midGame = false, withTimer = false) {
         }, true);
 
         function endTutorial() {
+            if (gameState.tutorialActive && gameState.tutorialStep !== 19) return;
+
+            clearTimeout(chefNoticeTimer);
+            chefNoticeTimer = null;
             clearTutorialInactivityTimers();
             gameState.tutorialActive = false;
             document.getElementById('chef-dialog-container').classList.add('hidden');
@@ -130,6 +158,8 @@ function showInstructions(fromMenu, midGame = false, withTimer = false) {
                 gameState.round = savedGameState.round;
                 gameState.currentOrderInRound = savedGameState.currentOrderInRound;
                 gameState.currentOrder = savedGameState.currentOrder;
+                gameState.orderCompleted = savedGameState.orderCompleted;
+                gameState.roundPizzaRequests = savedGameState.roundPizzaRequests;
                 gameState.timeLeft = savedGameState.timeLeft;
                 gameState.timerEnabled = savedGameState.timerEnabled;
                 savedGameState = null;
@@ -201,10 +231,27 @@ function showInstructions(fromMenu, midGame = false, withTimer = false) {
         function onModeSelected(withTimer) {
             if (modeSelectContext === 'tutorial') {
                 showInstructions(true, false, withTimer);
-            } else {
-                // Nuevo juego: iniciar tutorial con contexto 'newgame'
-                startTutorialForNewGame(withTimer);
+                return;
             }
+
+            prepareNewGameState(withTimer);
+            showWelcomeModal();
+        }
+
+        const welcomeBtnTutorial = document.getElementById('welcome-btn-tutorial');
+        if (welcomeBtnTutorial) {
+            welcomeBtnTutorial.addEventListener('click', () => {
+                closeWelcomeModal();
+                startTutorialForNewGame(gameState.timerEnabled);
+            });
+        }
+
+        const welcomeBtnStart = document.getElementById('welcome-btn-start');
+        if (welcomeBtnStart) {
+            welcomeBtnStart.addEventListener('click', () => {
+                closeWelcomeModal();
+                startRound(1);
+            });
         }
 
         function backToMainMenu() {
@@ -221,6 +268,10 @@ function showInstructions(fromMenu, midGame = false, withTimer = false) {
         }
 
         function startTutorial() {
+            stopTimer();
+            clearTimeout(chefNoticeTimer);
+            chefNoticeTimer = null;
+            gameState.roundPizzaRequests = 0;
             gameState.tutorialActive = true;
             gameState.tutorialStep = 0;
             document.getElementById('tutorial-blocker').classList.remove('hidden');
@@ -233,6 +284,8 @@ function showInstructions(fromMenu, midGame = false, withTimer = false) {
             document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight'));
             let mag = document.getElementById('temp-magnifier');
             if (mag) mag.remove();
+            let cursorGuide = document.getElementById('temp-cursor-guide');
+            if (cursorGuide) cursorGuide.remove();
             if (mockInterval) clearInterval(mockInterval);
         }
 
@@ -297,14 +350,14 @@ function showInstructions(fromMenu, midGame = false, withTimer = false) {
                 setChefDialog("Si te equivocas, perderás una vida. La partida termina cuando no te queden vidas.", true);
             }
             else if (step === 8) {
-                if (tutorialContext === 'newgame') {
+                if (tutorialContext !== 'menu') {
                     advanceTutorialStep();
                     return;
                 }
                 setChefDialog("Hay dos modalidades. Sin temporizador, puedes resolver cada pedido con calma.", true);
             }
             else if (step === 9) {
-                if (tutorialContext === 'newgame') {
+                if (tutorialContext !== 'menu') {
                     advanceTutorialStep();
                     return;
                 }
@@ -312,16 +365,13 @@ function showInstructions(fromMenu, midGame = false, withTimer = false) {
                 setChefDialog("Con temporizador, cada pedido tiene un límite de tiempo. Ahora verás cómo funciona.", true);
             }
             else if (step === 10) {
-                if (!gameState.timerEnabled) {
+                if (tutorialContext !== 'menu' || !gameState.timerEnabled) {
                     advanceTutorialStep();
                     return;
                 }
                 blocker.classList.remove('hidden');
                 document.getElementById('timer-display').classList.add('tutorial-highlight');
-                let timerMessage = tutorialContext === 'newgame'
-                    ? "Como elegiste el modo con temporizador, tendrás un tiempo límite para cada pedido."
-                    : "Observa el reloj: cuando el tiempo se agote, el cliente se marchará.";
-                setChefDialog(timerMessage, false);
+                setChefDialog("Observa el reloj: cuando el tiempo se agote, el cliente se marchará.", false);
                 
                 let mockTime = 3;
                 document.getElementById('timer-value').innerText = `${mockTime}s`;
@@ -360,11 +410,11 @@ function showInstructions(fromMenu, midGame = false, withTimer = false) {
             }
             else if (step === 12) {
                 document.getElementById('assembly-area').classList.add('tutorial-highlight');
-                setChefDialog("Si te faltan rebanadas, puedes pedir más al almacén.", true);
+                setChefDialog("Si te faltan rebanadas, puedes pedir más al almacén. Pero hay un límite: solo puedes pedir hasta 2 pizzas por ronda.", true);
             }
             else if (step === 13) {
                 document.getElementById('assembly-area').classList.add('tutorial-highlight');
-                setChefDialog("Pide solo las que necesitas: el almacén no acepta devoluciones.", true);
+                setChefDialog("Además, no puedes acumular más de 3 pizzas del mismo tipo en cada sección del almacén. Es la regla para mantener la masa suficiente.", true);
             }
             else if (step === 14) {
                 document.getElementById('assembly-area').classList.add('tutorial-highlight');
@@ -378,12 +428,13 @@ function showInstructions(fromMenu, midGame = false, withTimer = false) {
             }
             else if (step === 16) {
                 document.getElementById('assembly-area').classList.add('tutorial-highlight');
-                setChefDialog("Pulsa Pedir para solicitar pizzas divididas en medios.", false);
+                setChefDialog("Pulsa Pedir para solicitar pizzas divididas en medios. Recuerda: solo puedes pedir hasta 2 pizzas por ronda y no más de 3 pizzas del mismo tipo en el almacén.", false);
                 setTimeout(() => {
                     let btnReq2 = document.getElementById('btn-req-2');
                     if(btnReq2) {
                         btnReq2.parentElement.style.position = 'relative';
                         btnReq2.parentElement.insertAdjacentHTML('beforeend', '<div id="temp-magnifier" class="magnifying-glass">🔍</div>');
+                        btnReq2.parentElement.insertAdjacentHTML('beforeend', '<div id="temp-cursor-guide" class="cursor-guide">👉</div>');
                         btnReq2.style.position = 'relative';
                         btnReq2.style.zIndex = '60';
                     }

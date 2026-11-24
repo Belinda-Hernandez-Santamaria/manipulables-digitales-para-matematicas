@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Cocina Pizzas - Juego de Fracciones</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -15,23 +15,23 @@
             <h1 class="text-4xl font-bold mb-2 text-slate-800">🍕 Cocina Pizzas</h1>
             <p class="text-slate-500 mb-8">Suma y resta fracciones armando los pedidos de tus clientes</p>
             <div class="flex flex-col gap-4">
-                <button onclick="goToModeSelect(false)" class="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg transition transform hover:scale-105">🎮 Nuevo Juego</button>
-                <button onclick="showInstructions(true, false, true)" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition transform hover:scale-105">📖 Cómo Jugar</button>
-                <button onclick="attemptExitApp()" class="px-8 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition">🚪 Salir</button>
+                <button onclick="goToModeSelect(false)" class="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg transition transform hover:scale-105"> Nuevo Juego</button>
+                <button onclick="showInstructions(true, false, true)" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition transform hover:scale-105"> Cómo Jugar</button>
+                <button onclick="attemptExitApp()" class="px-8 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition"> Salir</button>
             </div>
         </div>
     </div>
 
     <div id="mode-select-view" class="hidden absolute inset-0 z-40 bg-slate-900 flex items-center justify-center overflow-y-auto">
         <div class="bg-white rounded-2xl shadow-2xl p-10 max-w-md w-11/12 text-center">
-            <h2 class="text-2xl font-bold mb-2 text-slate-800">Elige tu modalidad</h2>
+            <h2 class="text-2xl font-bold mb-2 text-slate-800">Elige el modo de juego</h2>
             <p class="text-slate-500 mb-8 text-sm">¿Quieres jugar tranquilo o poner a prueba tu velocidad mental?</p>
             <div class="flex flex-col gap-4">
                 <button onclick="onModeSelected(false)" class="px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg shadow-lg transition transform hover:scale-105">
-                    🧘 Jugar sin Temporizador
+                     Jugar sin Temporizador
                 </button>
                 <button onclick="onModeSelected(true)" class="px-8 py-4 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shadow-lg transition transform hover:scale-105">
-                    ⏱️ Jugar con Temporizador
+                     Jugar contrarreloj
                 </button>
                 <button onclick="backToMainMenu()" class="px-8 py-2 text-slate-500 hover:text-slate-700 font-medium transition">← Volver</button>
             </div>
@@ -64,16 +64,28 @@
         <main class="flex-1 flex flex-col overflow-y-auto p-4 gap-4 relative">
             <div class="text-center shrink-0">
                 <div id="round-info" class="text-sm font-bold text-blue-600 uppercase tracking-wider bg-blue-100 inline-block px-4 py-1 rounded-full border border-blue-200">Ronda 1 - Pedido 1 de 3</div>
+                <div id="mobile-game-tools" class="mobile-game-tools" aria-label="Consultas rápidas">
+                    <div id="mobile-announcement" class="mobile-announcement" role="status" aria-live="polite" aria-atomic="true" hidden>
+                        <strong id="mobile-announcement-title"></strong>
+                        <p id="mobile-announcement-text"></p>
+                    </div>
+                    <button type="button" onclick="toggleMobilePanel('order')" aria-controls="customer-panel" aria-expanded="false">💬 <span>Pedido</span></button>
+                    <button type="button" onclick="toggleMobilePanel('history')" aria-controls="customer-panel" aria-expanded="false">📌 <span>Historial</span></button>
+                </div>
             </div>
 
             <section id="customer-panel" class="shrink-0 items-stretch gap-4 bg-white rounded-xl border-2 border-slate-200 p-4 shadow-sm transition-all">
+                <div id="mobile-info-header" class="mobile-info-header">
+                    <strong id="mobile-info-title"></strong>
+                    <button type="button" onclick="closeMobilePanel()" aria-label="Cerrar panel">Cerrar ✕</button>
+                </div>
                 <div id="customer-request-panel" class="flex items-center gap-4 min-w-0">
                     <div class="flex flex-col items-center shrink-0 w-24">
                         <div id="customer-emoji" class="text-6xl md:text-7xl select-none transition-transform duration-300">🧑</div>
                         <div id="customer-name" class="text-sm font-bold text-slate-600 mt-2 hidden text-center w-full">Ana</div>
                     </div>
                     <div id="dialogue-bubble" class="flex-1 min-w-0 bg-yellow-50 border border-yellow-200 p-4 rounded-xl relative">
-                        <span class="text-xs font-bold text-yellow-800 uppercase block mb-1">📝 El cliente pide:</span>
+                        <span class="text-xs font-bold text-yellow-800 uppercase block mb-1"> El cliente pide:</span>
                         <p id="order-text" class="text-base md:text-lg text-slate-800 font-medium leading-relaxed"></p>
                     </div>
                 </div>
@@ -95,22 +107,23 @@
                 </section>
 
                 <section id="delivery-area" class="xl:w-[380px] w-full shrink-0 bg-orange-50 rounded-xl border-2 border-orange-200 p-4 flex flex-col transition-all">
-                    <div class="text-center text-xs font-bold text-orange-700 uppercase tracking-wider mb-2">📦 Cajas de Entrega</div>
+                    <div class="text-center text-xs font-bold text-orange-700 uppercase tracking-wider mb-2">Cajas de Entrega</div>
                     <div id="delivery-box" ondragover="event.preventDefault()" ondrop="dropHandler(event)"
                          class="flex-1 min-h-[160px] bg-white border-2 border-dashed border-orange-300 rounded-lg p-3 flex flex-wrap gap-4 justify-center content-start items-start overflow-y-auto custom-scroll">
                         <!-- Las cajas generadas irán aquí -->
                     </div>
                     
-                    <button id="btn-undo-box" onclick="undoLastBoxItem()" class="mt-3 w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg shadow transition flex items-center justify-center gap-2">
-                        🔙 Modificar Pedido (Quitar Rebanada)
+                    <button id="btn-undo-box" onclick="undoLastBoxItem()" title="Quitar una rebanada del pedido" class="mt-3 w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg shadow transition flex items-center justify-center gap-2">
+                        Modificar pedido
                     </button>
                     <button id="btn-submit-order" onclick="submitOrder()" class="mt-2 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition transform hover:scale-105 active:scale-95">
-                        ✅ Entregar Pedido
+                        Entregar Pedido
                     </button>
                 </section>
             </div>
         </main>
         
+        <div id="mobile-info-backdrop" class="hidden mobile-info-backdrop" onclick="closeMobilePanel()"></div>
         <div id="tutorial-blocker" class="hidden tutorial-blocker"></div>
     </div>
 
@@ -154,6 +167,26 @@
             <div id="result-title" class="text-xl font-bold mb-2"></div>
             <p id="result-message" class="text-slate-700 mb-6"></p>
             <button id="btn-accept-result" onclick="acceptResult()" class="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow transition">Aceptar</button>
+        </div>
+    </div>
+
+    <div id="welcome-modal" class="fixed inset-0 z-[90] hidden items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+        <div class="welcome-panel bg-white rounded-[28px] shadow-2xl w-full max-w-3xl overflow-hidden border border-orange-100">
+            <div class="grid md:grid-cols-[1.1fr_1.4fr] min-h-[420px]">
+                <div class="welcome-illustration flex items-center justify-center p-6 md:p-8 bg-gradient-to-br from-yellow-100 via-orange-100 to-rose-100">
+                    <img src="assets/welcome-chef.jpg" alt="Ilustración de bienvenida de Cocina Pizzas" class="w-full max-w-[260px] h-auto object-contain rounded-2xl">
+                </div>
+                <div class="welcome-content flex flex-col justify-center p-6 md:p-8 lg:p-10">
+                    <div class="inline-flex items-center self-start rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-amber-700 mb-4"> Bienvenido</div>
+                    <h2 id="welcome-title" class="text-3xl md:text-4xl font-black text-slate-800 leading-tight mb-3">¡Vamos a preparar pedidos!</h2>
+                    <p class="text-lg font-semibold text-slate-700 mb-2">¿Quieres conocer cómo jugar antes de comenzar?</p>
+                    <p class="text-base text-slate-600 mb-8">Puedes consultar las instrucciones ahora o hacerlo en cualquier momento durante la partida.</p>
+                    <div class="flex flex-col sm:flex-row gap-3 mt-auto">
+                        <button id="welcome-btn-tutorial" class="welcome-btn-primary flex-1 px-5 py-3 bg-orange-500 hover:bg-orange-600 focus-visible:outline-4 focus-visible:outline-orange-300 text-white font-bold rounded-xl shadow-lg transition transform hover:scale-[1.01] active:scale-95">Ver cómo jugar</button>
+                        <button id="welcome-btn-start" class="welcome-btn-secondary flex-1 px-5 py-3 bg-emerald-500 hover:bg-emerald-600 focus-visible:outline-4 focus-visible:outline-emerald-300 text-white font-bold rounded-xl shadow-lg transition transform hover:scale-[1.01] active:scale-95">¡Comencemos!</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

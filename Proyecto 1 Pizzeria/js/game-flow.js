@@ -1,8 +1,10 @@
+let mobileAnnouncementTimer = null;
+let mobileAnnouncementAnimation = null;
+
 function initGame(withTimer) {
-            // Ya no se usa directamente, ahora se usa startTutorialForNewGame
-            // Mantenemos por compatibilidad, pero redirigimos
-            startTutorialForNewGame(withTimer);
-        }
+    prepareNewGameState(withTimer);
+    showWelcomeModal();
+}
 
         function showCurtain(textStr, callback) {
             const curtain = document.getElementById('round-curtain');
@@ -23,6 +25,7 @@ function initGame(withTimer) {
             gameState.currentOrderInRound = 1;
             gameState.roundHistory = [];
             gameState.roundScoreStart = gameState.score;
+            gameState.roundPizzaRequests = 0;
             showCurtain(`Ronda ${roundNum}`, () => {
                 nextOrder();
             });
@@ -37,6 +40,7 @@ function initGame(withTimer) {
             gameState.box = {2:0,3:0,4:0,6:0,8:0};
             gameState.boxHistory = [];
             gameState.currentOrderAttempts = [];
+            gameState.orderCompleted = false;
             gameState.currentOrder = CardGenerator.generate();
 
             document.getElementById('round-info').innerText = `Ronda ${gameState.round} - Pedido ${gameState.currentOrderInRound} de ${gameState.ordersPerRound}`;
@@ -46,8 +50,58 @@ function initGame(withTimer) {
 
             renderAssembly();
             renderBox();
+            if (!gameState.tutorialActive) {
+                showMobileAnnouncement('order', gameState.currentOrder.texto);
+            }
 
             if (gameState.timerEnabled) startPlayingTimer();
+        }
+
+        function showMobileAnnouncement(type, message) {
+            if (window.innerWidth > 767) return;
+
+            const announcement = document.getElementById('mobile-announcement');
+            const title = document.getElementById('mobile-announcement-title');
+            const text = document.getElementById('mobile-announcement-text');
+            const buttons = document.querySelectorAll('#mobile-game-tools button');
+            const target = buttons[type === 'history' ? 1 : 0];
+            if (!announcement || !title || !text || !target) return;
+
+            clearTimeout(mobileAnnouncementTimer);
+            if (mobileAnnouncementAnimation) {
+                mobileAnnouncementAnimation.cancel();
+                mobileAnnouncementAnimation = null;
+            }
+
+            announcement.hidden = false;
+            announcement.classList.toggle('is-history', type === 'history');
+            title.textContent = type === 'history' ? 'Pedido guardado en el historial' : 'Nuevo pedido';
+            text.textContent = message;
+
+            mobileAnnouncementTimer = setTimeout(() => {
+                const sourceRect = announcement.getBoundingClientRect();
+                const targetRect = target.getBoundingClientRect();
+                const translateX = targetRect.left + targetRect.width / 2 - (sourceRect.left + sourceRect.width / 2);
+                const translateY = targetRect.top + targetRect.height / 2 - (sourceRect.top + sourceRect.height / 2);
+
+                if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                    announcement.hidden = true;
+                    return;
+                }
+
+                mobileAnnouncementAnimation = announcement.animate([
+                    { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+                    { transform: `translate(${translateX}px, ${translateY}px) scale(0.12)`, opacity: 0 }
+                ], {
+                    duration: 450,
+                    easing: 'cubic-bezier(0.2, 0.75, 0.25, 1)',
+                    fill: 'forwards'
+                });
+                mobileAnnouncementAnimation.onfinish = () => {
+                    announcement.hidden = true;
+                    mobileAnnouncementAnimation = null;
+                };
+            }, type === 'history' ? 1800 : 2600);
         }
 
         function escapeHtml(text) {
@@ -55,6 +109,45 @@ function initGame(withTimer) {
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[character]));
         }
+
+        function toggleMobilePanel(panel) {
+            if (window.innerWidth > 767) return;
+
+            const customerPanel = document.getElementById('customer-panel');
+            const backdrop = document.getElementById('mobile-info-backdrop');
+            const tools = document.querySelectorAll('#mobile-game-tools button');
+            const panelClass = panel === 'history' ? 'mobile-history-open' : 'mobile-order-open';
+            const wasOpen = customerPanel.classList.contains(panelClass);
+
+            customerPanel.classList.remove('mobile-order-open', 'mobile-history-open');
+            tools.forEach(button => button.setAttribute('aria-expanded', 'false'));
+
+            if (wasOpen) {
+                backdrop.classList.add('hidden');
+                return;
+            }
+
+            customerPanel.classList.add(panelClass);
+            backdrop.classList.remove('hidden');
+            document.getElementById('mobile-info-title').innerText = panel === 'history' ? 'Historial de pedidos' : 'Pedido actual';
+            const activeTool = tools[panel === 'history' ? 1 : 0];
+            if (activeTool) activeTool.setAttribute('aria-expanded', 'true');
+        }
+
+        function closeMobilePanel() {
+            const customerPanel = document.getElementById('customer-panel');
+            customerPanel.classList.remove('mobile-order-open', 'mobile-history-open');
+            document.getElementById('mobile-info-backdrop').classList.add('hidden');
+            document.querySelectorAll('#mobile-game-tools button').forEach(button => button.setAttribute('aria-expanded', 'false'));
+        }
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 767) closeMobilePanel();
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') closeMobilePanel();
+        });
 
         function showOrderHistory() {
             const records = gameState.history;

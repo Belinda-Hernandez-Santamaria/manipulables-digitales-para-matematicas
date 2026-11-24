@@ -1,6 +1,11 @@
 function startIntervalTick() {
             clearInterval(gameState.timerInterval);
             gameState.timerInterval = setInterval(() => {
+                if (gameState.tutorialActive) {
+                    stopTimer();
+                    return;
+                }
+
                 gameState.timeLeft--;
                 updateTimerDisplay();
                 if (gameState.timeLeft <= 15 && gameState.timeLeft > 0) {
@@ -17,6 +22,11 @@ function startIntervalTick() {
         }
 
         function startPlayingTimer() {
+            if (gameState.tutorialActive) {
+                stopTimer();
+                return;
+            }
+
             gameState.timerMode = 'PLAYING';
             gameState.timeLeft = gameState.maxTime;
             document.getElementById('timer-display').classList.remove('hidden');
@@ -26,7 +36,7 @@ function startIntervalTick() {
         }
 
         function resumeTimer() {
-            if (!gameState.timerEnabled) return;
+            if (!gameState.timerEnabled || gameState.tutorialActive) return;
             gameState.timerMode = 'PLAYING';
             document.getElementById('timer-display').classList.remove('hidden');
             updateTimerDisplay();
